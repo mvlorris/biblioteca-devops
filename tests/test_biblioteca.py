@@ -5,7 +5,7 @@ from src.biblioteca import livro_valido
 
 def test_adicionar_livro():
     livro = adicionar_livro("Clean Code", "Robert C. Martin")
-    assert livro["titulo"] == "Livro Incorreto"
+    assert livro["titulo"] == "Clean Code"
     assert livro["autor"] == "Robert C. Martin"
 
 
