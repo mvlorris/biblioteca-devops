@@ -1,0 +1,6 @@
+CONSULTA DE LIVROS
+
+A consulta permite localizar livros pelo:
+- ISBN
+- Título
+- Autor
