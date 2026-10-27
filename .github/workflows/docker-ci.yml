@@ -1,0 +1,98 @@
+name: Docker CI - Laboratorio 06
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-test:
+    name: Build e testes Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Verificar ambiente Docker
+        run: |
+          mkdir -p reports
+          {
+            git --version
+            python3 --version
+            docker --version
+            docker info
+            uname -m
+          } 2>&1 | tee reports/00-ambiente.log
+
+      - name: Construir imagem de testes
+        run: |
+          docker build --progress=plain -t biblioteca-devops:ci . 2>&1 | tee reports/01-build.log
+
+      - name: Listar e inspecionar imagem
+        run: |
+          docker image ls biblioteca-devops | tee reports/02-imagens.log
+          docker image inspect biblioteca-devops:ci > reports/02-imagem-inspect.json
+          docker image inspect biblioteca-devops:ci --format 'ID={{.Id}} | Tamanho={{.Size}} bytes | Usuario={{.Config.User}} | Diretorio={{.Config.WorkingDir}}'
+
+      - name: Executar testes no container
+        run: |
+          set +e
+          docker run --name biblioteca-devops-teste biblioteca-devops:ci > reports/03-testes.log 2>&1
+          code=$?
+          set -e
+          cat reports/03-testes.log
+          echo "Codigo de saida do container: $code" | tee reports/03-codigo-saida.log
+          exit "$code"
+
+      - name: Inspecionar container e salvar logs
+        if: always()
+        run: |
+          if docker container inspect biblioteca-devops-teste > /dev/null 2>&1; then
+            docker ps -a | tee reports/04-containers.log
+            docker logs biblioteca-devops-teste > reports/04-container.log 2>&1
+            docker inspect biblioteca-devops-teste > reports/04-container-inspect.json
+            docker inspect biblioteca-devops-teste --format 'Status={{.State.Status}} | ExitCode={{.State.ExitCode}} | Usuario={{.Config.User}}'
+            docker rm biblioteca-devops-teste
+          fi
+
+      - name: Validar execucao descartavel com --rm
+        if: success()
+        run: |
+          docker run --rm --name biblioteca-devops-descartavel biblioteca-devops:ci 2>&1 | tee reports/05-testes-rm.log
+          if docker container inspect biblioteca-devops-descartavel > /dev/null 2>&1; then
+            echo 'ERRO: o container deveria ter sido removido.'
+            exit 1
+          fi
+          echo 'Container descartavel removido. A imagem permanece disponivel.' | tee reports/05-remocao.log
+          docker image ls biblioteca-devops
+
+      - name: Salvar evidencias da execucao
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias-docker-${{ github.run_number }}
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Resumo do laboratorio
+        if: always()
+        run: |
+          {
+            echo '## Docker CI - Laboratorio 06'
+            echo "Revisao testada: $GITHUB_SHA"
+            echo 'Imagem: biblioteca-devops:ci'
+            echo 'Comando de testes: python -m pytest -v'
+            if [ -f reports/03-codigo-saida.log ]; then
+              cat reports/03-codigo-saida.log
+            fi
+            echo 'Logs e inspecoes: artifact evidencias-docker.'
+            echo 'Nenhuma imagem foi publicada em registry. Nenhum deploy foi realizado.'
+          } >> "$GITHUB_STEP_SUMMARY"
