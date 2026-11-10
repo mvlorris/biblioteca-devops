@@ -1,7 +1,10 @@
 EMPRÉSTIMO DE LIVROS
 
 Dados necessários para registrar um empréstimo:
-- ISBN DO LIVRO: identifica o exemplar emprestado.
+- ISBN DO LIVRO: identifica a edição do livro.
+- CÓDIGO DO EXEMPLAR: informar quando houver mais de um exemplar da mesma edição.
 - NOME DO USUÁRIO: identifica quem realizou o empréstimo.
 - DATA DO EMPRÉSTIMO: informar no formato DD/MM/AAAA.
 - DATA PREVISTA PARA DEVOLUÇÃO: informar no formato DD/MM/AAAA.
+
+A data prevista de devolução deve ser igual ou posterior à data do empréstimo.
